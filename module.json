@@ -10,8 +10,8 @@
           "path": "lang/en.json"
         }
     ],
-    "version": "0.3.1",
-    "download": "https://github.com/fizbin42/ddb-adventure-importer/archive/v0.3.1.zip", 
+    "version": "0.3.2",
+    "download": "https://github.com/fizbin42/ddb-adventure-importer/archive/v0.3.2.zip", 
     "manifest": "https://github.com/fizbin42/ddb-adventure-importer/releases/latest/download/module.json",
     "url": "https://github.com/fizbin42/ddb-adventure-importer",
     "minimumCoreVersion": "0.7.0",

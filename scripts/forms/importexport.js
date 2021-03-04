@@ -1,7 +1,8 @@
+// eslint-disable-next-line no-unused-vars
 import { logger } from "../logger.js";
 import { adventures, save, getAPIServer, ready } from "../utils.js";
 import { Importer } from "../importer.js";
-import { Exporter } from "../Exporter.js";
+import { Exporter } from "../exporter.js";
 
 export class ImportExport extends Application {
     static get defaultOptions() {
