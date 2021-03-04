@@ -1,0 +1,77 @@
+<form>
+      <h2>Import adventure from D&D Beyond</a></h2>
+    <p>Read Me First! Follow theses steps to import an D&D Beyond adventure:</p>
+      <ul>
+          <li>You obviously need to own what you will import here. Both ddb-adventure-importer and ddb-importer will log on your behalf on D&D Beyond to bring back content to Foundry.</li>
+          <li>Start with the bulk import of spells, items and monsters. Use Mr Primate's ddb-importer for this step.</li>
+          <li>Select and import an adventure below.</li>
+          <li>Done!</li>
+      </ul>
+     <br />
+
+     <!-- Tabs -->
+    <nav class="sheet-tabs tabs">
+      <a class="item active" data-tab="import"><i class="fas fa-file-import"></i> Import</a>
+      <a class="item" data-tab="export"><i class="fas fa-file-export"></i> Export</a>
+      <a class="item" data-tab="help"><i class="fas fa-info-circle"></i> Help</a>
+    </nav>
+
+   <!-- Import Tab -->
+  <section class="tab" data-tab="import">
+      <div>
+        <br /><h2>Workspace</h2>
+      </div>
+      <p>If you want to import from a specific workspace, put it here. Otherwise, leave it blank. If you don't know what it's for, leave it blank ;)</p>
+      <div class="form-content" style="display: flex">
+          <input type="text" name="ddbai-workspace" id="ddbai-workspace" style="flex: 0 1 auto" value="{{workspace}}" />
+      </div>
+      <div>
+        <br /><h2>Adventure</h2>
+      </div>
+      <p>Select an adventure to import. If it's not there, then it's still in the work; please be patient and retry later. We announce all new content on our patreon page.</p>
+      <select name="ddbai-adventure-id" id="ddbai-adventure-id" style="flex: 0 1 auto">
+          {{#each adventures}}
+            <option value="{{this.id}}">{{this.name}}</option>
+          {{/each}}
+      </select>
+      <br /><br />
+      <div>
+        <button type="button" id="import-adventure-start" {{#if ready}}enabled{{else}}disabled{{/if}}>Import adventure</button>
+      </div>
+  </section>
+  <section class="tab" data-tab="export">
+      <div>
+        <br /><h2>Name</h2>
+      </div>
+      <p>Your name or surname. It will be used to set the author of this submission</p>
+      <div class="form-content" style="display: flex">
+          <input type="text" name="ddbai-submission-name" id="ddbai-submission-name" style="flex: 0 1 auto" value="{{name}}" />
+      </div>
+      <div>
+        <br /><h2>Email</h2>
+      </div>
+      <p>This email will be used as the workspace name. We'll also use it to contact you if any questions arise when publishing the new content.</p>
+      <div class="form-content" style="display: flex">
+          <input type="text" name="ddbai-submission-email" id="ddbai-submission-email" style="flex: 0 1 auto" value="{{workspace}}" />
+      </div>
+      <div>
+        <br /><h2>Comments</h2>
+      </div>
+      <p>Please, give your submission some context. For example <i>"Put some walls in that scene"</i></p>
+      <div class="form-content" style="display: flex">
+          <input type="text" name="ddbai-submission-message" id="ddbai-submission-message" style="flex: 0 1 auto" value="" />
+      </div>
+      <br /><br />
+      <div>
+        <button type="button" id="export-adventure-start" {{#if ready}}enabled{{else}}disabled{{/if}}>Export adventure</button>
+      </div>
+  </section>
+  <section class="tab" data-tab="help">
+      <div>
+        <h2>Help</h2>
+      </div>
+      <p>Some day, there will be helpfull hint here...</p>
+      <br /><br />
+  </section>
+
+</form>

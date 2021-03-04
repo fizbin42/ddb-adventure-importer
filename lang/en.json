@@ -1,0 +1,13 @@
+{
+    "ddb-adventure-importer.module-name": "D&D Beyond Adventure Importer",
+    "ddb-adventure-importer.media-upload-directory.name": "Media upload directory",
+    "ddb-adventure-importer.media-upload-directory.hint": "Specificies the media upload location on the server.",
+    "ddb-adventure-importer.log-level.name": "Log Level",
+    "ddb-adventure-importer.log-level.hint": "The level of console log statements that should be displayed in the console.",
+    "ddb-adventure-importer.cobalt-cookie.name": "DDB Cobalt Cookie",
+    "ddb-adventure-importer.cobalt-cookie.hint": "You can get this using Mr. Primate Chrome extension https://github.com/MrPrimate/ddb-adventure-importer-chrome",
+    "ddb-adventure-importer.patreon-key.name": "Patreon supporter key",
+    "ddb-adventure-importer.patreon-key.hint": "Enter your Patreon support key here",
+    "ddb-adventure-importer.setup.name": "Core setup",
+    "ddb-adventure-importer.setup.hint": "Core setup options"
+}

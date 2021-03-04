@@ -1,0 +1,36 @@
+<h2>DDB Adventure Importer Configuration</h2>
+<p>Welcome! Before importing an adventure from D&D Beyond, we need to do some setup, nothing too hard I promises ;)</p>
+<p>This module use the same method to connect to DDB than Mr Primate's DDB-Importer, 
+    so if you already used his great module, you will be in business soon!</p>
+
+<div class="form-description">
+  <form id="ddb-importer-settings" autocomplete="off" onsubmit="event.preventDefault();">
+    <hr>
+    <h3>[Required] A location for media uploads</h3>
+    <p>These can't be stored in your root data folder, create a directory to place them. All files will be prefixed with stranges IDs,
+        so you may want to use a separate folder than the rest or your stuff to keep things tidy.
+    </p>
+    <div class="form-content" style="display: flex">
+      <input class="setup-config" type="text" data-dtype="Directory" name="media-upload-directory" style="flex: 0 1 auto" ;
+        value="{{setupConfig.media-upload-directory}}" />
+    </div>
+    
+    <hr>
+    <h3>[Required] A Cobalt Cookie</h3>
+    <p>Use Mr. Primate <a href="https://github.com/MrPrimate/ddb-importer-chrome">Chrome extension</a> to get this! Or follow <a href="https://cdn.discordapp.com/attachments/761196994898165781/781176499155238942/manually-find-cookie.png">these manual steps</a>.
+    If you alreary have set the Cobalt Cookie in Mr Primate Module, you can leave this one blank.</p>
+      <input class="setup-config" type="password" name="cobalt-cookie" style="flex: 0 1 auto" ;
+        value="{{setupConfig.cobalt-cookie}}" />
+    <hr>
+    <h3>[Required] Patreon Key</h3>
+    <p>A patreon key is requied for importing or exporting adventures.</p>
+      <input class="setup-config" type="text" name="patreon-key" style="flex: 0 1 auto" ;
+        value="{{setupConfig.patreon-key}}" />
+    <hr>
+    <p>If you need to change these settings in the future, you can do it in the module settings page.</p>
+    <div class="ddbai-task-setup" id="ddbai-task-setup" style="color: red">
+      <br />
+    </div>
+    <button id="ddbai-settings" type="submit">Save</button>
+  </form>
+</div>
