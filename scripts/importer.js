@@ -180,10 +180,35 @@ export const Importer = class {
         }
     }
 
+    async createFolders (node, type, basesort) {
+        if (basesort === undefined) {
+            basesort = {
+                attribute: "sort",
+                value: undefined
+            };
+        }
+        if (type in node.data) {
+            await content.set(node.data[type], "Folder", basesort);
+        }
+        await Promise.all(node.childrens.map((c) => {
+            return this.createFolders(c, type, basesort);
+        }));
+        //for (let c of node.childrens) {
+            // eslint-disable-next-line no-await-in-loop
+        //    await this.createFolders(c, type, basesort);
+        //}
+    }
+
     async process (adventure) {
-        await this.createEntities(this.data);
-        await this.linkJournalEntries();
-        await this.link();
+        let works = [];
+        for (let t in content.MANAGED_ENTITIES) {
+            works.push(this.createFolders(this.data, t));
+        }
+        await Promise.all(works);
+        
+        // await this.createEntities(this.data);
+        // await this.linkJournalEntries();
+        // await this.link();
         game.settings.set(
             "ddb-adventure-importer",
             "current-book",

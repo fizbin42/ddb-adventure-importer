@@ -8,6 +8,7 @@ export const loadTypes = () => {
     for (let t of [Scene, Actor, Item, Folder, JournalEntry, RollTable]) {
         MANAGED_ENTITIES[t.name] = {
             config: t.config,
+            isFolder: false,
             embeddedScope: {},
             relations: [],
             foundryContext: ["permission", "_id"], // These attributes are only needed within Foundry; they will be deleted at exportation 
@@ -18,6 +19,7 @@ export const loadTypes = () => {
             MANAGED_ENTITIES[t.name].foundryContextEmbedded[e] = ["_id"];
         }
     }
+    MANAGED_ENTITIES.Folder.isFolder = true;
     
     MANAGED_ENTITIES.Scene.embeddedScope.Note = { type: "JournalEntry", id: "entryId" };
     MANAGED_ENTITIES.Scene.media.push({ source: "src", target: "img" }); 
@@ -65,6 +67,15 @@ const link = async(entity) => {
         });
         // eslint-disable-next-line no-await-in-loop
         await entity.updateEmbeddedEntity(s, embedded);
+    }
+};
+
+const prelink = (data, type) => {
+    for (let r of MANAGED_ENTITIES[type].relations) {
+        let related = get(data[r.id], r.type);
+        if (related) {
+            data[r.id] = related._id;
+        }
     }
 };
 
@@ -181,6 +192,7 @@ export const inScope = (entityType, embeddedType, embedded) => {
 };
 
 export const set = async (data, type, accumulator) => {
+    prelink(data, type);
     let entity = get(data.flags.ddbai.id, type);
     if (entity) {
         // Managing media attibutes
@@ -190,6 +202,7 @@ export const set = async (data, type, accumulator) => {
                 const directory = game.settings.get("ddb-adventure-importer", "media-upload-directory");
                 // eslint-disable-next-line no-await-in-loop
                 const img = await save(data[m.source], directory);
+                // eslint-disable-next-line require-atomic-updates
                 data[m.target] = img.path;
             }
             delete data[m.source];
