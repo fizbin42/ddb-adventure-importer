@@ -172,12 +172,13 @@ export const unlink = async (entity, data) => {
 };
 
 export const linkAll = async () => {
+    let work = [];
     for (let type in MANAGED_ENTITIES) {
         for (let entity of MANAGED_ENTITIES[type].config.collection.filter((e) => e.data.flags.ddbai)) {
-            // eslint-disable-next-line no-await-in-loop
-            await link(entity);
+            work.push(link(entity));
         }
     }
+    await Promise.all(work);
 };
 
 export const inScope = (entityType, embeddedType, embedded) => {
@@ -191,7 +192,7 @@ export const inScope = (entityType, embeddedType, embedded) => {
     }
 };
 
-export const set = async (data, type, accumulator) => {
+export const set = async (data, type, step, accumulator) => {
     prelink(data, type);
     let entity = get(data.flags.ddbai.id, type);
     if (entity) {
@@ -243,6 +244,9 @@ export const set = async (data, type, accumulator) => {
         }
     }
     await link(entity, data);
+    if (step !== undefined) {
+        step.step();
+    }
     return entity;
 };
 

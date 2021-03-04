@@ -91,20 +91,25 @@ export const Exporter = class {
         }
     }
 
-    async processExport(workspace, name, message, adventure) {
+    async processExport(workspace, name, message, adventure, step) {
+        this.step = step;
+        this.step.step("Checking scope...");
         for (let m in content.MANAGED_ENTITIES) {
             this.checkScope(content.MANAGED_ENTITIES[m].config.collection); // Look for entities out of scope; they are no longer needed and will be purged from the repository.
         }
-  
+        this.step.step();
+        this.step.step("Flagging entries....");
         for (let f of game.folders.filter((f) => f.parent === null && f.data.flags && f.data.flags.ddbai)) {
             // eslint-disable-next-line no-await-in-loop
             await this.flag(f, f.data.flags.ddbai.book); // Starting at the root, we flag all children
         }
+        this.step.step();
         await this.export(workspace, name, message, adventure);
     }
 
     async export(workspace, name, message, adventure) {
         let hasExports = false;
+        this.step.step("Preparing data...");
         for (let me in content.MANAGED_ENTITIES) {
             this.entities[me] = {
                 rm: [],
@@ -120,7 +125,9 @@ export const Exporter = class {
                 // logger.info(json);
             }
         }
+        this.step.step(5);
         if (hasExports) {
+            this.step.step("Sending submission...");
             let data = {
                 data: this.entities,
                 author: {
@@ -130,22 +137,22 @@ export const Exporter = class {
                 message: message
             };
             let json = JSON.stringify(data);
-            (async () => {
-                const url = getAPIServer() + "/api/submission/" + adventure + "/";
-                let headers = new Headers();
-                headers.append('Authorization', 'JWT ' + game.settings.get("ddb-adventure-importer", "patreon-key"));
-                headers.append('Accept', 'application/json');
-                headers.append('Content-Type', 'application/json');
-                const rawResponse = await fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: json
-                });
-                const content = await rawResponse.json();
-              
-                // eslint-disable-next-line no-console
-                console.log(content);
-            })();
+            const url = getAPIServer() + "/api/submission/" + adventure + "/";
+            let headers = new Headers();
+            headers.append('Authorization', 'JWT ' + game.settings.get("ddb-adventure-importer", "patreon-key"));
+            headers.append('Accept', 'application/json');
+            headers.append('Content-Type', 'application/json');
+            const rawResponse = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: json
+            });
+            await rawResponse.json();
+            this.step.step(10);
+            this.step.step("Adventure saved in workspace.");
+        } else {
+            this.step.step(10);
+            this.step.step("No data to export.");
         }
     }
 };

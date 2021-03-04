@@ -157,27 +157,21 @@ export const Importer = class {
         logger.log("Correcting links: done.");
     }
 
-    async createEntities (node, basesort) {
-        if (basesort === undefined) {
-            basesort = {
-                attribute: "sort",
-                value: undefined
-            };
-        }
-        for (let t in node.data) {
-            // eslint-disable-next-line no-await-in-loop
-            await content.set(node.data[t], "Folder", basesort);
-        }
+    async setEntities (node, promises) {
         for (let t in node.entities) {
             for (let e of node.entities[t]) {
-                // eslint-disable-next-line no-await-in-loop
-                await content.set(e.data, e.type);
+                promises.push(content.set(e.data, e.type, this.step));
             }
         }
         for (let c of node.childrens) {
-            // eslint-disable-next-line no-await-in-loop
-            await this.createEntities(c, basesort);
+            this.setEntities(c, promises);
         }
+    }
+
+    async createEntities (root) {
+        let promises = [];
+        this.setEntities(root, promises);
+        await Promise.all(promises);
     }
 
     async createFolders (node, type, basesort) {
@@ -188,33 +182,46 @@ export const Importer = class {
             };
         }
         if (type in node.data) {
-            await content.set(node.data[type], "Folder", basesort);
+            await content.set(node.data[type], "Folder", this.step, basesort);
         }
         await Promise.all(node.childrens.map((c) => {
             return this.createFolders(c, type, basesort);
         }));
-        //for (let c of node.childrens) {
-            // eslint-disable-next-line no-await-in-loop
-        //    await this.createFolders(c, type, basesort);
-        //}
     }
 
-    async process (adventure) {
+    async process (step) {
         let works = [];
+        this.step = step;
+        this.step.step("Creating folders...");
         for (let t in content.MANAGED_ENTITIES) {
             works.push(this.createFolders(this.data, t));
         }
         await Promise.all(works);
-        
-        // await this.createEntities(this.data);
-        // await this.linkJournalEntries();
-        // await this.link();
+        this.step.step("Creating entries...");
+        await this.createEntities(this.data);
+        this.step.step("Linking entries...");
+        await this.linkJournalEntries();
+        this.step.step(30);
+        await this.link();
+        this.step.step(20);
         game.settings.set(
             "ddb-adventure-importer",
             "current-book",
-            adventure
+            this.adventure
         );
+        this.step.step("Importing done.");
         logger.info("Importing done.");
+    }
+
+    getSize(node) {
+        let n = Object.keys(node.data).length;
+        for (let e in node.entities) {
+            n += node.entities[e].length;
+        }
+        for (let c of node.childrens) {
+            n += this.getSize(c);
+        }
+        return n;
     }
 
     load(adventure, workspace) {
@@ -226,16 +233,17 @@ export const Importer = class {
         } else {
             branch = "main";
         }
-        const url = getAPIServer() + "/api/adventure/" + adventure + "/" + branch;
+        const url = getAPIServer() + "/api/adventure/" + this.adventure + "/" + branch;
         let headers = new Headers();
         headers.append('Authorization', 'JWT ' + game.settings.get("ddb-adventure-importer", "patreon-key"));
 
         return fetch(url, { method: 'GET', headers: headers }).then(async (result) => {
             logger.info('Response received, 200 OK');
             this.data = await result.json();
-            this.process(adventure);
+            return this.getSize(this.data) + 50;
         }, (error) => {
             logger.error('REST GET request failed to importer API: ' + error.message);
+            return 0;
         });
     }
 };

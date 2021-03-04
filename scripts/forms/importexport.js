@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 import { logger } from "../logger.js";
-import { adventures, save, getAPIServer, ready } from "../utils.js";
+import { adventures, ready } from "../utils.js";
 import { Importer } from "../importer.js";
 import { Exporter } from "../exporter.js";
 
@@ -22,11 +22,11 @@ export class ImportExport extends Application {
         super.activateListeners(html);
         html.find("#import-adventure-start").click(async () => {
             ImportExport.disableButtons();
-            ImportExport.importAdventure();
+            this.importAdventure();
         });
         html.find("#export-adventure-start").click(async () => {
             ImportExport.disableButtons();
-            ImportExport.exportAdventure();
+            this.exportAdventure();
         });
         html.find('#ddbai-workspace').on("change", (event) => {
             game.settings.set(
@@ -67,20 +67,43 @@ export class ImportExport extends Application {
         $('button[id^="export-adventure-"]').prop('disabled', true);
     }
 
-    static dummy() {
-        const url = getAPIServer() + "/api/redeem/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZ3JhbnRlZSIsImhyZWYiOiJodHRwczovL21lZGlhLXdhdGVyZGVlcC5jdXJzZWNkbi5jb20vYXR0YWNobWVudHMvNS8zNzkvMDEtcGMucG5nIiwiaWF0IjoxNjEyNDA2NDQzLCJleHAiOjE2MTI0MTI0NDN9.V76QN9sgRZ7DcUxE9QeEoNwflNMl9rbqkqKYl2sm40o/01-pc.png";
-        return save(url, "[data] test");
+    step(label) {
+        if (label === undefined || Number.isInteger(label)) {
+            let s = 1;
+            if (label) {
+                s = label;
+            }
+            this.milestone += s;
+            if (this.milestone > this.size) {
+                this.milestone = this.size;
+            }
+            $('#import-progress-bar').css('width', Math.round(100.0 * this.milestone / this.size) + "%");
+        } else {
+            $('#import-progress-title').text(label);
+        }
     }
   
-    static async importAdventure() {
+    async importAdventure() {
         const imported = new Importer();
-        await imported.load($('#ddbai-adventure-id').val(), $('#ddbai-workspace').val());
+        this.milestone = -1;
+        this.size = 1;
+        this.step();
+        this.step("Loading data from D&DBeyond...");
+        this.size = await imported.load($('#ddbai-adventure-id').val(), $('#ddbai-workspace').val());
+        if (this.size > 0) {
+            imported.process(this);
+        } else {
+            this.step("Importation error");
+        }
         ImportExport.enableButtons();
     }
 
-    static async exportAdventure() {
+    async exportAdventure() {
         const exporter = new Exporter();
-        await exporter.processExport($('#ddbai-submission-email').val(), $('#ddbai-submission-name').val(), $('#ddbai-submission-message').val(), game.settings.get("ddb-adventure-importer", "current-book"));
+        this.milestone = -1;
+        this.size = 17;
+        this.step();
+        await exporter.processExport($('#ddbai-submission-email').val(), $('#ddbai-submission-name').val(), $('#ddbai-submission-message').val(), game.settings.get("ddb-adventure-importer", "current-book"), this);
         ImportExport.enableButtons();
     }
   

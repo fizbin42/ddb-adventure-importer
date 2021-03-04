@@ -1,0 +1,23 @@
+#import-progress-widget { 
+    border: 1px solid black;
+    border-radius: 3px;
+    height: 20px;
+    overflow: hidden;
+    position: relative;
+}
+#import-progress-title { 
+    height: 20px;
+    text-align: center;
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+}
+#import-progress-bar { 
+    color:#fff!important;
+    height: 20px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color:#4CAF50!important;
+}
