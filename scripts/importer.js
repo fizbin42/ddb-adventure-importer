@@ -1,6 +1,6 @@
 import { logger } from "./logger.js";
 import * as content from "./content.js";
-import { getAPIServer } from "./utils.js";
+import * as utils from "./utils.js";
 
 const normalizeName = (value) => {
     return value.toLowerCase().replaceAll(/[\W_]+/ig, "");
@@ -11,156 +11,209 @@ export const Importer = class {
     constructor() {
       this.data = {};
       this.refs = {};
-      this.compendiums = {};
-    }
-
-    async linkJournalEntry (entry) {
-        const domparser = new DOMParser();
-        const doc = domparser.parseFromString(entry.data.content, 'text/html');
-      
-        for (const node of doc.querySelectorAll('a[href^="https://www.dndbeyond.com/"]')) { // For content from DNDBeyond
-            if (this.data.index[node.href]) {
-                let e = content.get(this.data.index[node.href], "JournalEntry", true);
-                if (e) {
-                    let refItem = "@JournalEntry[" + e.id + "]{" + e.name + "}";
-                    node.replaceWith(refItem);
-                } else {
-                    // eslint-disable-next-line no-console
-                    console.error("linkJournalEntry, Not Found: " + node.href + " ID: " + this.data.index[node.href]);
-                }
-            }
-        }
-        for (const node of doc.querySelectorAll('a[guid]')) { // For custom content
-            let guid = node.getAttribute("guid");
-            let e = content.get(guid, "JournalEntry");
-            if (e) {
-                let refItem = "@JournalEntry[" + e.id + "]{" + e.name + "}";
-                node.replaceWith(refItem);
-            } else {
-                // eslint-disable-next-line no-console
-                console.error("linkJournalEntry, Not found: " + guid);
-            }
-        }
-        await entry.update({ content: doc.body.outerHTML });
-        return entry;
-      }
-      
-    async linkJournalEntries() {
-        const entries = game.journal.filter((entry) => entry.data.flags.ddbai);
-        for (let e of entries) {
-            // eslint-disable-next-line no-await-in-loop
-            await this.linkJournalEntry(e);
-        }
-    }
-      
-    linkCompendium(content, type, asText = false) {
-        const domparser = new DOMParser();
-        const doc = domparser.parseFromString(content, 'text/html');
-        const items = this.compendiums[type].index;
-        for (const node of doc.querySelectorAll('a[href^="https://www.dndbeyond.com/' + type + '/"]')) {
-            let itemName = normalizeName(node.href.substring(node.href.lastIndexOf('/') + 1));
-            let item = items.find((i) => normalizeName(i.name) === itemName);
-            if (item) {
-                let refItem = "@Compendium[world." + this.compendiums[type].compendium.metadata.name + "." + item._id + "]{" + item.name + "}";
-                node.replaceWith(refItem);
-            }
-        }
-        if (asText) {
-            return doc.body.textContent;
+      if (utils.moduleActive("ddb-importer")) {
+            this.compendiums = {
+                "Actor": {
+                    "name": game.settings.get("ddb-importer", "entity-monster-compendium"),
+                },
+                "Item": {
+                    "name": game.settings.get("ddb-importer", "entity-item-compendium"),
+                },
+                "Spell": {
+                    "name": game.settings.get("ddb-importer", "entity-spell-compendium"),
+                },
+            };
+            this.ddbcompendiums = {
+                "magic-items": this.compendiums.Item,
+                "monsters": this.compendiums.Actor,
+                "spells": this.compendiums.Spell,
+                "equipment": this.compendiums.Item
+            };
         } else {
-            return doc.body.innerHTML;
+            this.compendiums = {};
+            this.ddbcompendiums = {};
         }
     }
 
     // eslint-disable-next-line class-methods-use-this
-    async linkRollTable(entry) {
-        /* eslint-disable no-await-in-loop */
+    linkContent(html) {
         const domparser = new DOMParser();
-        const doc = domparser.parseFromString(entry.data.content, 'text/html');
-        for (const node of doc.querySelectorAll('div[data-type="rolltable"]')) {
-            let rollTable = content.get(node.getAttribute("data-id"), "RollTable");
-            if (rollTable) {
-                node.innerHTML = `<div style="text-align: right;"><i>Roll Table: </i>@RollTable[${rollTable._id}]{${rollTable.name}}</div><br />`;
-                node.removeAttribute("data-type");
-                node.removeAttribute("data-id");
+        const doc = domparser.parseFromString(html, 'text/html');
+        for (const node of doc.querySelectorAll('a[data-ddbai-id]')) {
+            let id = node.getAttribute("data-ddbai-id");
+            let type = node.getAttribute("data-ddbai-type");
+            let entity = content.get(id, type);
+            if (entity) {
+                let refItem = "@" + type + "[" + entity.id + "]{" + node.textContent + "}";
+                node.replaceWith(refItem);
             } else {
-                logger.error("RollTable " + node.getAttribute("data-id") + " not found.");
+                logger.error(type + " not found: " + node.href + " ID: " + id);
             }
         }
-        await entry.update({ content: doc.body.innerHTML });
-    }
-      
-    async linkJournalCompendium (entry, type) {
-        if (entry.constructor.name == "RollTable") {
-            for (let r of entry.data.results) {
-                r.text = this.linkCompendium(r.text, type);
-            }
-            await entry.update({ results: entry.data.results });
-        } else {
-            await entry.update({ content: this.linkCompendium(entry.data.content, type) });
-        }
-    }
-      
-    async linkEntry (entry) {
-        /* eslint-disable no-await-in-loop */
-        for (let c in this.compendiums) {
-            await this.linkJournalCompendium(entry, c);
-        }
-        if (entry.constructor.name == "JournalEntry") {
-            await this.linkRollTable(entry);
-        }
-        if (entry.constructor.name == "RollTable") {
-            const domparser = new DOMParser();
-            for (let r of entry.data.results) {
-                const doc = domparser.parseFromString(r.text, 'text/html');
-                r.text = doc.body.textContent;
-            }
-            await entry.update({ results: entry.data.results });
-        }
-        /* eslint-enable no-await-in-loop */
-    }
-      
-    async linkEntries (entries) {
-        /* eslint-disable no-await-in-loop */
-        for (let entry of entries) {
-            await this.linkEntry(entry);
-        }
-        /* eslint-enable no-await-in-loop */
+        return (doc.body.innerHTML);
     }
 
-    async link () {
-        logger.info("Correcting links in journals entries...");
-        this.compendiums = {
-            "magic-items": {
-                "name": game.settings.get("ddb-importer", "entity-item-compendium"),
-            },
-            "monsters": {
-                "name": game.settings.get("ddb-importer", "entity-monster-compendium"),
-            },
-            "spells": {
-                "name": game.settings.get("ddb-importer", "entity-spell-compendium"),
-            },
-            "equipment": {
-                "name": game.settings.get("ddb-importer", "entity-item-compendium"),
+    updateEntry(entry, data) {
+        let that = this;
+        return entry.update(data).then(() => {
+            that.step.step();
+            return Promise.resolve();
+        }, (err) => {
+            logger.error("updateEntry error: " + err);
+            that.step.step();
+            return Promise.resolve();
+        });
+    }
+
+    updateEmbedded(entry, attribute, data) {
+        let that = this;
+        return entry.updateEmbeddedEntity(attribute, data).then(() => {
+            that.step.step();
+            return Promise.resolve();
+        }, (err) => {
+            logger.error("updateEntry error: " + err);
+            that.step.step();
+            return Promise.resolve();
+        });
+    }
+      
+    linkJournalEntries() {
+        const entries = content.MANAGED_ENTITIES["JournalEntry"].config.collection.filter((entry) => entry.data.flags.ddbai);
+        let works = [];
+        for (let e of entries) {
+            let html = this.linkContent(e.data.content);
+            works.push(this.updateEntry(e, { content: html }));
+        }
+        return Promise.all(works);
+    }
+
+    linkActors() {
+        const entries = content.MANAGED_ENTITIES["Actor"].config.collection.filter((entry) => entry.data.flags.ddbai);
+        let works = [];
+        for (let e of entries) {
+            let html = this.linkContent(e.data.data.details.biography.value);
+            works.push(this.updateEntry(e, { 
+                data: {
+                    details: {
+                        biography: {
+                            value: html
+                        }
+                    }
+                }
+            }));
+        }
+        return Promise.all(works);
+    }
+
+    linkItems() {
+        const entries = content.MANAGED_ENTITIES["Item"].config.collection.filter((entry) => entry.data.flags.ddbai);
+        let works = [];
+        for (let e of entries) {
+            let html = this.linkContent(e.data.data.description.value);
+            works.push(this.updateEntry(e, { 
+                data: {
+                    description: {
+                        value: html
+                    }
+                }
+            }));
+        }
+        return Promise.all(works);
+    }
+
+    linkRollTables() {
+        const entries = content.MANAGED_ENTITIES["RollTable"].config.collection.filter((entry) => entry.data.flags.ddbai);
+        let works = [];
+        for (let e of entries) {
+            let data = [];
+            for (let r of e.data.results) {
+                data.push({
+                    _id: r._id,
+                    text: this.linkContent(r.text)
+                });
             }
-        };
-        /* eslint-disable no-await-in-loop */
+            works.push(this.updateEmbedded(e, "TableResult", data));
+        }
+        return Promise.all(works);
+    }
+
+    async loadCompendiums () {
         for (let c in this.compendiums) {
             this.compendiums[c].compendium = game.packs.get(this.compendiums[c].name);
+            // eslint-disable-next-line no-await-in-loop
             this.compendiums[c].index = await this.compendiums[c].compendium.getIndex();
         }
-        /* eslint-enable no-await-in-loop */
-        
-        await this.linkEntries(game.journal.filter((entry) => entry.data.flags.ddbai));
-        await this.linkEntries(game.tables.filter((entry) => entry.data.flags.ddbai));
-        await content.linkAll();
-        logger.log("Correcting links: done.");
+    }
+
+    contentSet (data, type, basesort) {
+        let that = this;
+        return content.set(data, type, basesort).then(() => {
+            that.step.step();
+            return Promise.resolve();
+        }, (err) => {
+            logger.error("content.set: " + err);
+            that.step.step();
+            return Promise.resolve();
+        });
+    }
+
+    static getOrigin(entity) {
+        let origin = {
+            url: null,
+            id: null
+        };
+        if (entity.data.flags.monsterMunch) {
+            if (entity.data.flags.monsterMunch.url) {
+                origin.url = entity.data.flags.monsterMunch.url;
+            }
+        } else if (entity.data.flags.ddbimporter) {
+            origin.id = entity.data.flags.ddbimporter.definitionId;
+        }
+        return origin;
+    }
+
+    setEntitiesFromCompendium (node) {
+        // Data need to be prepared; it's in the compendium
+        let items = this.compendiums[node.type].index;
+        let item = items.find((i) => normalizeName(i.name) === node.name);
+        let that = this;
+        if (item) {
+            return this.compendiums[node.type].compendium.getEntity(item._id).then((entity) => {
+                let origin = Importer.getOrigin(entity);
+                if (origin.url == node.data.flags.ddbai.source || origin.id == node.data.flags.ddbai.ddbid) {
+                    // 
+                } else {
+                    logger.warn(node.type + " " + node.name + " in compendium, but mismatch in source for id: " + entity._id + " source: " + node.data.flags.ddbai.source + " id: " + node.data.flags.ddbai.ddbid + " origin: " + JSON.stringify(origin));
+                }
+                let data = content.MANAGED_ENTITIES[node.type].config.collection.fromCompendium(entity.data);
+                delete data._id;
+                data.sort = node.data.sort;
+                data.flags.ddbai = node.data.flags.ddbai;
+                data.folder = node.data.folder;
+                if (node.type == "Actor") { // Set the TOC
+                    data.data.details.biography.value += node.data.data.details.biography.value;
+                } else if (node.type == "Item") { // Set the TOC
+                    data.data.description.value += node.data.data.description.value;
+                }
+                return that.contentSet(data, node.type);
+            }, (err) => {
+                logger.error(node.type + " " + node.name + " get entity failed: " + err);
+                return Promise.resolve();
+            });
+        } else {
+            logger.error(node.type + " " + node.name + " not found in compendium.");
+            return Promise.resolve();
+        }
     }
 
     async setEntities (node, promises) {
         for (let t in node.entities) {
             for (let e of node.entities[t]) {
-                promises.push(content.set(e.data, e.type, this.step));
+                if (content.MANAGED_ENTITIES[e.type].fromCompendium) {
+                    promises.push(this.setEntitiesFromCompendium(e));
+                } else {
+                    promises.push(this.contentSet(e.data, e.type));
+                }
             }
         }
         for (let c of node.childrens) {
@@ -182,7 +235,7 @@ export const Importer = class {
             };
         }
         if (type in node.data) {
-            await content.set(node.data[type], "Folder", this.step, basesort);
+            await this.contentSet(node.data[type], "Folder", basesort);
         }
         await Promise.all(node.childrens.map((c) => {
             return this.createFolders(c, type, basesort);
@@ -192,6 +245,9 @@ export const Importer = class {
     async process (step) {
         let works = [];
         this.step = step;
+        this.step.step("Loading compendiums...");
+        await this.loadCompendiums();
+        this.step.step(5);
         this.step.step("Creating folders...");
         for (let t in content.MANAGED_ENTITIES) {
             works.push(this.createFolders(this.data, t));
@@ -201,9 +257,10 @@ export const Importer = class {
         await this.createEntities(this.data);
         this.step.step("Linking entries...");
         await this.linkJournalEntries();
-        this.step.step(30);
-        await this.link();
-        this.step.step(20);
+        await this.linkRollTables();
+        await this.linkActors();
+        await this.linkItems();
+        // await this.link();
         game.settings.set(
             "ddb-adventure-importer",
             "current-book",
@@ -224,6 +281,26 @@ export const Importer = class {
         return n;
     }
 
+    getLinkableEntitySize(node) {
+        let n = 0;
+        if ("JournalEntry" in node.entities) {
+            n += node.entities["JournalEntry"].length;
+        }
+        if ("RollTable" in node.entities) {
+            n += node.entities["RollTable"].length;
+        }
+        if ("Actor" in node.entities) {
+            n += node.entities["Actor"].length;
+        }
+        if ("Item" in node.entities) {
+            n += node.entities["Item"].length;
+        }
+        for (let c of node.childrens) {
+            n += this.getLinkableEntitySize(c);
+        }
+        return n;
+    }
+
     load(adventure, workspace) {
         this.adventure = adventure;
         logger.info('Contacting importer API...');
@@ -233,14 +310,26 @@ export const Importer = class {
         } else {
             branch = "main";
         }
-        const url = getAPIServer() + "/api/adventure/" + this.adventure + "/" + branch;
+        const url = utils.getAPIServer() + "/api/adventure/" + this.adventure + "/" + branch;
         let headers = new Headers();
         headers.append('Authorization', 'JWT ' + game.settings.get("ddb-adventure-importer", "patreon-key"));
 
         return fetch(url, { method: 'GET', headers: headers }).then(async (result) => {
-            logger.info('Response received, 200 OK');
-            this.data = await result.json();
-            return this.getSize(this.data) + 50;
+            const status = result.status;
+            if (status == 200) {
+                logger.info('Response received, 200 OK');
+                this.data = await result.json();
+                return Promise.resolve(this.getSize(this.data) + this.getLinkableEntitySize(this.data) + 5);
+            } else if (status == 401) {
+                logger.error('401: Unauthorize access to the importer API');
+                return Promise.reject("Unautorized: is your patreon token valid ?");
+            } else if (status == 500) {
+                logger.error('500: Internal server error');
+                return Promise.reject("Internal server error");
+            } else {
+                logger.error('Unknown server error: ' + status);
+                return Promise.reject("Internal server error");
+            }
         }, (error) => {
             logger.error('REST GET request failed to importer API: ' + error.message);
             return 0;

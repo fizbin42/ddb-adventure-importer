@@ -49,6 +49,10 @@ export const getAPIServer = () => {
     }
 };
 
+export const moduleActive = (moduleName) => {
+    return game.modules.has(moduleName) && game.modules.get(moduleName).active;
+};
+
 export const getCobaltCookie = () => {
     return game.settings.get("ddb-adventure-importer", "cobalt-cookie") || game.settings.get("ddb-importer", "cobalt-cookie");
 };

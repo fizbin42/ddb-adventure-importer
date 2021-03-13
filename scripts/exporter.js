@@ -49,8 +49,8 @@ export const Exporter = class {
     checkScope(map) {
         for (let e of map.filter((f) => f.data.flags && f.data.flags.ddbai && f.data.flags.ddbai.origin == "mod")) {
             if (!this.bookScope(content.getParent(e), e.data.flags.ddbai.book)) {
-                this.entities[e.constructor.name].rm.push(e.data.flags.ddbai.id);
-                logger.info("Out of scope: " + e.constructor.name + " " + e.name + ": will be removed from repository.");
+                this.entities[content.getType(e)].rm.push(e.data.flags.ddbai.id);
+                logger.info("Out of scope: " + content.getType(e) + " " + e.name + ": will be removed from repository.");
             }
         }
     }
@@ -69,7 +69,7 @@ export const Exporter = class {
             };
             // eslint-disable-next-line no-await-in-loop
             await u.update(update);
-            logger.info("New " + u.constructor.name + " found in folder " + folder.name + ": " + u.name);
+            logger.info("New " + content.getType(u) + " found in folder " + folder.name + ": " + u.name);
         }
         for (let f of folder.children) {
             if (!("ddbai" in f.data.flags)) {

@@ -4,15 +4,20 @@ import { save, uploadDDBAI } from "./utils.js";
 
 export const MANAGED_ENTITIES = {};
 
+// export const getBook = (entity) => {
+//     return entity.data && entity.data.flags && entity.data.flags.ddbai && entity.data.flags.ddbai.book;
+// };
+
 export const loadTypes = () => {
     for (let t of [Scene, Actor, Item, Folder, JournalEntry, RollTable]) {
         MANAGED_ENTITIES[t.name] = {
             config: t.config,
             isFolder: false,
-            embeddedScope: {},
+            fromCompendium: false, // These entities can be generated from compendium
+            embeddedScope: {}, // Embedded entity can have relations
             relations: [],
             foundryContext: ["permission", "_id"], // These attributes are only needed within Foundry; they will be deleted at exportation 
-            foundryContextEmbedded: {},
+            foundryContextEmbedded: {}, // These embedded attributes are only needed within Foundry; they will be deleted at exportation
             media: [],
         };
         for (let e in t.config.embeddedEntities) {
@@ -20,19 +25,38 @@ export const loadTypes = () => {
         }
     }
     MANAGED_ENTITIES.Folder.isFolder = true;
-    
-    MANAGED_ENTITIES.Scene.embeddedScope.Note = { type: "JournalEntry", id: "entryId" };
-    MANAGED_ENTITIES.Scene.media.push({ source: "src", target: "img" }); 
+    MANAGED_ENTITIES.Folder.relations = [{ type: "Folder", id: "parent" }];
     
     MANAGED_ENTITIES.JournalEntry.relations = [{ type: "Folder", id: "folder" }];
-    MANAGED_ENTITIES.Scene.relations = [{ type: "Folder", id: "folder" }, { type: "JournalEntry", id: "journal" }];
-    MANAGED_ENTITIES.RollTable.relations = [{ type: "Folder", id: "folder" }];
-    MANAGED_ENTITIES.Actor.relations = [{ type: "Folder", id: "folder" }];
-    MANAGED_ENTITIES.Item.relations = [{ type: "Folder", id: "folder" }];
-    MANAGED_ENTITIES.Folder.relations = [{ type: "Folder", id: "parent" }];
 
+    MANAGED_ENTITIES.RollTable.relations = [{ type: "Folder", id: "folder" }];
+
+    MANAGED_ENTITIES.Actor.relations = [{ type: "Folder", id: "folder" }];
+    MANAGED_ENTITIES.Actor.fromCompendium = true;
+
+    MANAGED_ENTITIES.Item.relations = [{ type: "Folder", id: "folder" }];
+    MANAGED_ENTITIES.Item.fromCompendium = true;
+
+    MANAGED_ENTITIES.Scene.relations = [{ type: "Folder", id: "folder" }, { type: "JournalEntry", id: "journal" }];
     MANAGED_ENTITIES.Scene.foundryContext.push('_priorThumbPath');
     MANAGED_ENTITIES.Scene.foundryContext.push('thumb');
+    MANAGED_ENTITIES.Scene.embeddedScope.Note = { type: "JournalEntry", id: "entryId" };
+    MANAGED_ENTITIES.Scene.media.push({ source: "src", target: "img" });
+};
+
+export const getType = (obj) => {
+    let type = obj.constructor.name;
+    if (type in MANAGED_ENTITIES) {
+        return type;
+    } else {
+        type = Object.getPrototypeOf(obj.constructor).name;
+        if (type in MANAGED_ENTITIES) {
+            return type;
+        } else {
+            logger.error("Unknown entity type " + obj.constructor.name);
+            return null;
+        }
+    }
 };
 
 export const get = (id, type, foundryID = false) => {
@@ -49,7 +73,11 @@ export const get = (id, type, foundryID = false) => {
 };
 
 const link = async(entity) => {
-    let type = entity.constructor.name;
+    let type = getType(entity);
+    // let book = getBook(entity);
+    if (!(type in MANAGED_ENTITIES)) {
+        logger.error("Unknown entity type " + type);
+    }
     for (let r of MANAGED_ENTITIES[type].relations) {
         let related = get(entity.data[r.id], r.type);
         if (related) {
@@ -79,9 +107,19 @@ const prelink = (data, type) => {
     }
 };
 
+const delModOrigin = (content) => {
+    const domparser = new DOMParser();
+    let doc = domparser.parseFromString(content, 'text/html');
+    let body = doc.body;
+    for (const node of body.querySelectorAll('div[data-origin=ddbai]')) {
+        node.parentNode.removeChild(node);
+    }
+    return (body.innerHTML);
+};
+
 // eslint-disable-next-line complexity
 export const unlink = async (entity, data) => {
-    let type = entity.constructor.name;
+    let type = getType(entity);
     if (type == "Folder") { // rebase sort relative to root
         let parent = entity;
         while (parent.parent) {
@@ -91,13 +129,11 @@ export const unlink = async (entity, data) => {
         // data.sort -= parent.data.sort; 
     }
     if (type == "JournalEntry") { // remove generated content
-        const domparser = new DOMParser();
-        let doc = domparser.parseFromString(data.content, 'text/html');
-        let body = doc.body;
-        for (const node of body.querySelectorAll('div[origin=ddbai]')) {
-            node.parentNode.removeChild(node);
-        }
-        data.content = body.innerHTML;
+        data.content = delModOrigin(data.content);
+    } else if (type == "Actor") { // remove generated content
+        data.data.details.biography.value = delModOrigin(data.data.details.biography.value);
+    } else if (type == "Item") { // remove generated content
+        data.data.description.value = delModOrigin(data.data.description.value);
     }
     for (let r of MANAGED_ENTITIES[type].relations) {
         let related = entity[r.id];
@@ -140,17 +176,17 @@ export const unlink = async (entity, data) => {
         let newMedia = false;
         if (md5) {
             if (entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m.target] && entity.data.flags.ddbai.media[m.target].id === md5[0]) {
-                // logger.info("Old media in field " + m.target + " of " + entity.constructor.name + " " + entity.name);
+                // logger.info("Old media in field " + m.target + " of " + etType(entity) + " " + entity.name);
             } else {
-                logger.info("New media in field " + m.target + " of " + entity.constructor.name + " " + entity.name);
+                logger.info("New media in field " + m.target + " of " + getType(entity) + " " + entity.name);
                 newMedia = true;
             }
         } else {
-            logger.info("New media in field " + m.target + " of " + entity.constructor.name + " " + entity.name);
+            logger.info("New media in field " + m.target + " of " + getType(entity) + " " + entity.name);
             newMedia = true;
         }
         if (newMedia && entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m.target] && entity.data.flags.ddbai.media[m.target].replaced == media) {
-            logger.info("New media flagged replaced in field " + m.target + " of " + entity.constructor.name + " " + entity.name);
+            logger.info("New media flagged replaced in field " + m.target + " of " + getType(entity) + " " + entity.name);
             newMedia = false;
         }
         if (newMedia) {
@@ -192,7 +228,7 @@ export const inScope = (entityType, embeddedType, embedded) => {
     }
 };
 
-export const set = async (data, type, step, accumulator) => {
+export const set = async (data, type, accumulator) => {
     prelink(data, type);
     let entity = get(data.flags.ddbai.id, type);
     if (entity) {
@@ -220,7 +256,7 @@ export const set = async (data, type, step, accumulator) => {
                 await entity.createEmbeddedEntity(et, data[attribute]);
             }
         }
-        logger.info("Updated " + type + " " + entity.name);
+        logger.debug("Updated " + type + " " + entity.name);
     } else {
         if (accumulator && accumulator.value) { // For folder sorting.
             data[accumulator.attribute] += accumulator.value;
@@ -238,15 +274,12 @@ export const set = async (data, type, step, accumulator) => {
             let thumb = await entity.createThumbnail();
             await entity.update({ thumb: thumb });
         }
-        logger.info("Created " + type + " " + entity.name);
+        logger.debug("Created " + type + " " + entity.name);
         if (accumulator && accumulator.value === undefined) { // For folder sorting.
             accumulator.value = entity.data[accumulator.attribute];
         }
     }
     await link(entity, data);
-    if (step !== undefined) {
-        step.step();
-    }
     return entity;
 };
 

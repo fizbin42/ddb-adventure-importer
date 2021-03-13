@@ -40,17 +40,20 @@ export default function () {
     });
 
     game.settings.register("ddb-adventure-importer", "submission-name", {
-        name: "Name",
-        hint: "",
         scope: "world",
         config: false,
         type: String,
         default: "",
     });
 
+    game.settings.register("ddb-adventure-importer", "from-compendium", {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: "",
+    });
+
     game.settings.register("ddb-adventure-importer", "current-book", {
-        name: "Current book",
-        hint: "",
         scope: "world",
         config: false,
         type: String,
@@ -58,8 +61,6 @@ export default function () {
     });
 
     game.settings.register("ddb-adventure-importer", "submission-workspace", {
-        name: "Workspace",
-        hint: "",
         scope: "world",
         config: false,
         type: String,
