@@ -322,17 +322,18 @@ export const Importer = class {
                 return Promise.resolve(this.getSize(this.data) + this.getLinkableEntitySize(this.data) + 5);
             } else if (status == 401) {
                 logger.error('401: Unauthorize access to the importer API');
-                return Promise.reject("Unautorized: is your patreon token valid ?");
+                return Promise.reject({ message: "Unautorized: is your patreon token valid ?" });
             } else if (status == 500) {
                 logger.error('500: Internal server error');
-                return Promise.reject("Internal server error");
+                let err = await result.json();
+                return Promise.reject(err);
             } else {
                 logger.error('Unknown server error: ' + status);
-                return Promise.reject("Internal server error");
+                return Promise.reject({ message: "Internal server error" });
             }
         }, (error) => {
             logger.error('REST GET request failed to importer API: ' + error.message);
-            return 0;
+            return Promise.reject(error);
         });
     }
 };

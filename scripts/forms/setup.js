@@ -1,10 +1,11 @@
 const BAD_DIRS = ["[data]", "[data] ", "", null];
 import DirectoryPicker from "../lib/DirectoryPicker.js";
 
-Hooks.on("renderDDBAISetup", (app, html, user) => {
+Hooks.on("renderDDBAISetup", (app, html) => {
     DirectoryPicker.processHtml(html);
 });
 
+// eslint-disable-next-line no-undef
 class DDBAISetup extends FormApplication {
     static get defaultOptions() {
         const options = super.defaultOptions;

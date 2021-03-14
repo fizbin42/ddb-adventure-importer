@@ -3,6 +3,7 @@ import { logger } from "../logger.js";
 import * as utils from "../utils.js";
 import { Importer } from "../importer.js";
 import { Exporter } from "../exporter.js";
+import { DDBAIError } from "./error.js";
 
 export class ImportExport extends Application {
     static get defaultOptions() {
@@ -106,8 +107,9 @@ export class ImportExport extends Application {
             ImportExport.enableButtons();
         }, (err) => {
             this.milestone = 0;
-            this.step(err);
+            this.step(err.message);
             ImportExport.enableButtons();
+            new DDBAIError(DDBAIError.defaultOptions, err).render(true);
         });
     }
 
