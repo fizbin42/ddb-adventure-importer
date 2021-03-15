@@ -14,7 +14,7 @@ export class DDBAIError extends Application {
         options.template = "modules/ddb-adventure-importer/handlebars/error.handlebars";
         options.resizable = false;
         options.height = 600;
-        options.width = 600;
+        options.width = "auto";
         options.title = "Error - DDB Adventure Importer";
         return options;
     }

@@ -269,7 +269,12 @@ export const set = async (data, type, accumulator) => {
             delete data[m.source];
             data[m.target] = img.path;
         }
-        entity = await MANAGED_ENTITIES[type].config.baseEntity.create(data);
+        try {
+            entity = await MANAGED_ENTITIES[type].config.baseEntity.create(data);
+        } catch (err) {
+            logger.error(err);
+            logger.info(JSON.stringify(data, undefined, 2));
+        }
         if (type === "Scene") {
             let thumb = await entity.createThumbnail();
             await entity.update({ thumb: thumb });
