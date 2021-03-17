@@ -92,19 +92,54 @@ export class ImportExport extends Application {
   
     async importAdventure() {
         const imported = new Importer();
+        let that = this;
         this.milestone = -1;
         this.size = 1;
         this.step();
         this.step("Loading data from D&DBeyond...");
-        imported.load($('#ddbai-adventure-id').val(), $('#ddbai-workspace').val()).then((size) => {
+        imported.load($('#ddbai-adventure-id').val(), $('#ddbai-workspace').val()).then(async (size) => {
             this.size = size;
             if (this.size > 0) {
-                imported.process(this);
+                try {
+                    await imported.process(that, $('#from-compendium').is(":checked"));
+                } catch (err) {
+                    let error = {
+                        message: "Error while processing adventure",
+                        error: err
+                    };
+                    this.milestone = 0;
+                    this.step(err.message);
+                    ImportExport.enableButtons();
+                    new DDBAIError(DDBAIError.defaultOptions, error).render(true);
+                    return;
+                }
             } else {
+                let error = {
+                    message: "Importation error",
+                    error: "No entity returned"
+                };
                 this.milestone = 0;
-                this.step("Importation error");
+                this.step(error.message);
+                ImportExport.enableButtons();
+                new DDBAIError(DDBAIError.defaultOptions, error).render(true);
+                return;
             }
             ImportExport.enableButtons();
+            if (Object.keys(imported.linkFailed).length > 0) {
+                let tmp = {
+                    message: "Adventure imported, but with some entities missing.",
+                    details: "It can happen when the adventure is compendium content only, and missing monsters and items bundles. Do you have the full licence for the source ?",
+                    error: ""
+                };
+
+                for (let t in imported.linkFailed) {
+                    tmp.error += "Missing " + t + "s:\n";
+                    for (let e in imported.linkFailed[t]) {
+                        tmp.error += "   - " + imported.linkFailed[t][e] + "\n";
+                    }
+                }
+                new DDBAIError(DDBAIError.defaultOptions, tmp).render(true);
+            }
         }, (err) => {
             this.milestone = 0;
             this.step(err.message);

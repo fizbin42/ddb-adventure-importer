@@ -11,6 +11,8 @@ export const Importer = class {
     constructor() {
       this.data = {};
       this.refs = {};
+      this.linkFailed = {};
+      this.fromCompendium = false;
       if (utils.moduleActive("ddb-importer")) {
             this.compendiums = {
                 "Actor": {
@@ -41,13 +43,20 @@ export const Importer = class {
         const doc = domparser.parseFromString(html, 'text/html');
         for (const node of doc.querySelectorAll('a[data-ddbai-id]')) {
             let id = node.getAttribute("data-ddbai-id");
+            let href = node.getAttribute("href");
             let type = node.getAttribute("data-ddbai-type");
             let entity = content.get(id, type);
             if (entity) {
                 let refItem = "@" + type + "[" + entity.id + "]{" + node.textContent + "}";
                 node.replaceWith(refItem);
             } else {
-                logger.error(type + " not found: " + node.href + " ID: " + id);
+                if (this.linkFailed[type] === undefined) {
+                    this.linkFailed[type] = {};
+                }
+                if (this.linkFailed[type][href] === undefined) {
+                    this.linkFailed[type][href] = node.textContent;
+                }
+                logger.warn(type + " not found: " + node.href + " ID: " + id);
             }
         }
         return (doc.body.innerHTML);
@@ -143,6 +152,7 @@ export const Importer = class {
             // eslint-disable-next-line no-await-in-loop
             this.compendiums[c].index = await this.compendiums[c].compendium.getIndex();
         }
+        this.fromCompendium = true;
     }
 
     contentSet (data, type, basesort) {
@@ -198,10 +208,12 @@ export const Importer = class {
                 return that.contentSet(data, node.type);
             }, (err) => {
                 logger.error(node.type + " " + node.name + " get entity failed: " + err);
+                that.step.step();
                 return Promise.resolve();
             });
         } else {
             logger.error(node.type + " " + node.name + " not found in compendium.");
+            that.step.step();
             return Promise.resolve();
         }
     }
@@ -210,7 +222,14 @@ export const Importer = class {
         for (let t in node.entities) {
             for (let e of node.entities[t]) {
                 if (content.MANAGED_ENTITIES[e.type].fromCompendium) {
-                    promises.push(this.setEntitiesFromCompendium(e));
+                    if (this.fromCompendium) {
+                        promises.push(this.setEntitiesFromCompendium(e));
+                    } else if (e.overloaded) {
+                        promises.push(this.contentSet(e.data, e.type));
+                    } else {
+                        logger.warn(e.type + " " + e.data.name + " must be loaded from compendium.");
+                        this.step.step(2); // we must take one additionnal step, because those entities will not be there in the link phase, and they are included in getLinkableEntitySize
+                    }
                 } else {
                     promises.push(this.contentSet(e.data, e.type));
                 }
@@ -242,11 +261,14 @@ export const Importer = class {
         }));
     }
 
-    async process (step) {
+    async process (step, fromCompendium) {
         let works = [];
         this.step = step;
-        this.step.step("Loading compendiums...");
-        await this.loadCompendiums();
+        this.fromCompendium = fromCompendium;
+        if (this.fromCompendium) {
+            this.step.step("Loading compendiums...");
+            await this.loadCompendiums();
+        }
         this.step.step(5);
         this.step.step("Creating folders...");
         for (let t in content.MANAGED_ENTITIES) {
@@ -268,6 +290,7 @@ export const Importer = class {
         );
         this.step.step("Importing done.");
         logger.info("Importing done.");
+        return Promise.resolve();
     }
 
     getSize(node) {

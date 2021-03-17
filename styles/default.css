@@ -61,4 +61,16 @@
       /* Safari, Android, iOS */ url("./fonts/roboto-condensed-v18-latin-700.svg#RobotoCondensed") format("svg");
     /* Legacy iOS */
   }
+
+  aside.read-aloud-text {
+    overflow: auto;
+    display: block;
+    margin: 30px 30px;
+    line-height: 1.6;
+    font-size: 14px;
+    color: #d2d2c6;
+    background-color: #6d6c66;
+    padding: 20px 20px 20px 20px !important;
+    position: relative;
+  }
   
