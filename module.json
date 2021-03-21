@@ -10,9 +10,19 @@
           "path": "lang/en.json"
         }
     ],
-    "version": "0.3.7",
-    "download": "https://github.com/fizbin42/ddb-adventure-importer/archive/v0.3.7.zip", 
+    "version": "0.3.8",
+    "download": "https://github.com/fizbin42/ddb-adventure-importer/archive/v0.3.8.zip", 
     "manifest": "https://github.com/fizbin42/ddb-adventure-importer/releases/latest/download/module.json",
+    "dependencies": [
+        {
+          "name": "narrator-tools",
+          "manifest": "https://raw.githubusercontent.com/elizeuangelo/fvtt-module-narrator-tools/master/module.json"
+        },
+        {
+          "name": "journal-icon-numbers",
+          "manifest": "https://gitlab.com/tiwato/journal_icon_numbers/raw/master/module.json"
+        }
+    ],
     "url": "https://github.com/fizbin42/ddb-adventure-importer",
     "minimumCoreVersion": "0.7.0",
     "esmodules": ["scripts/index.js"],

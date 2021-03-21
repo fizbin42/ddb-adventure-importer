@@ -72,6 +72,14 @@ export const get = (id, type, foundryID = false) => {
     return entity;
 };
 
+export const cleanUp = () => {
+    let works = [];
+    for (let f of game.folders.filter((f) => f.parent === null && f.data.flags && f.data.flags.ddbai)) {
+        works.push(f.delete({ deleteSubfolders: true, deleteContents: true }));
+    }
+    return Promise.all(works);
+};
+
 const link = async(entity) => {
     let type = getType(entity);
     // let book = getBook(entity);
@@ -89,9 +97,14 @@ const link = async(entity) => {
     }
     for (let s in MANAGED_ENTITIES[type].embeddedScope) {
         let embedded = entity.getEmbeddedCollection(s).map((e) => { 
-            let update = { _id: e._id };
-            update[MANAGED_ENTITIES[type].embeddedScope[s].id] = get(e[MANAGED_ENTITIES[type].embeddedScope[s].id], MANAGED_ENTITIES[type].embeddedScope[s].type, true);
-            return update;
+            let linked = get(e[MANAGED_ENTITIES[type].embeddedScope[s].id], MANAGED_ENTITIES[type].embeddedScope[s].type, true);
+            if (linked) {
+                let update = { _id: e._id };
+                update[MANAGED_ENTITIES[type].embeddedScope[s].id] = linked.id;
+                return update;
+            } else {
+                return undefined;
+            }
         });
         // eslint-disable-next-line no-await-in-loop
         await entity.updateEmbeddedEntity(s, embedded);
@@ -207,14 +220,14 @@ export const unlink = async (entity, data) => {
     data.id = entity.data.flags.ddbai.id;
 };
 
-export const linkAll = async () => {
+export const linkAll = () => {
     let work = [];
     for (let type in MANAGED_ENTITIES) {
         for (let entity of MANAGED_ENTITIES[type].config.collection.filter((e) => e.data.flags.ddbai)) {
             work.push(link(entity));
         }
     }
-    await Promise.all(work);
+    return Promise.all(work);
 };
 
 export const inScope = (entityType, embeddedType, embedded) => {

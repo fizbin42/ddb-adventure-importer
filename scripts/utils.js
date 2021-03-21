@@ -98,3 +98,12 @@ export const save = (url, directory) => {
         return upl;
     });
 };
+
+export const cleanUp = () => {
+    let works = [];
+    for (let f of game.folders.filter((f) => f.parent === null && f.data.flags && f.data.flags.ddbai)) {
+        works.push(f.delete());
+    }
+    return Promise.all(works);
+};
+

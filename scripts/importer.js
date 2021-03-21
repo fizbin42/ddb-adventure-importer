@@ -282,7 +282,8 @@ export const Importer = class {
         await this.linkRollTables();
         await this.linkActors();
         await this.linkItems();
-        // await this.link();
+        await content.linkAll();
+        this.step.step(5);
         game.settings.set(
             "ddb-adventure-importer",
             "current-book",
@@ -342,7 +343,7 @@ export const Importer = class {
             if (status == 200) {
                 logger.info('Response received, 200 OK');
                 this.data = await result.json();
-                return Promise.resolve(this.getSize(this.data) + this.getLinkableEntitySize(this.data) + 5);
+                return Promise.resolve(this.getSize(this.data) + this.getLinkableEntitySize(this.data) + 10);
             } else if (status == 401) {
                 logger.error('401: Unauthorize access to the importer API');
                 return Promise.reject({ message: "Unautorized: is your patreon token valid ?" });

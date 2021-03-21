@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import { logger } from "../logger.js";
 import * as utils from "../utils.js";
+import * as content from "../content.js";
 import { Importer } from "../importer.js";
 import { Exporter } from "../exporter.js";
 import { DDBAIError } from "./error.js";
@@ -28,6 +29,16 @@ export class ImportExport extends Application {
         html.find("#export-adventure-start").click(async () => {
             ImportExport.disableButtons();
             this.exportAdventure();
+        });
+        html.find("#cleanup-ddbai").click(async () => {
+            // eslint-disable-next-line no-undef
+            await Dialog.confirm({
+                title: "Confirm deletion",
+                content: "This action will delete all imported content, are you sure ?",
+                yes: () => { 
+                    content.cleanUp(); 
+                }
+              });
         });
         html.find('#ddbai-workspace').on("change", (event) => {
             game.settings.set(
