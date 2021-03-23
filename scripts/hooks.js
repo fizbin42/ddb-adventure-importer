@@ -10,6 +10,14 @@ export function onceReady() {
   loadAdventures();
 }
 
+export function onceInit() {
+  // eslint-disable-next-line no-undef
+  if (CONST && CONST.FOLDER_MAX_DEPTH < 5) {
+    // eslint-disable-next-line no-undef
+    CONST.FOLDER_MAX_DEPTH = 5;
+  }
+}
+
 /* eslint-disable no-unused-vars */
 export function renderSidebarTab(app, html) {
   addImportDDB(app, html);
