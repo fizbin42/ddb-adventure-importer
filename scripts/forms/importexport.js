@@ -5,6 +5,7 @@ import * as content from "../content.js";
 import { Importer } from "../importer.js";
 import { Exporter } from "../exporter.js";
 import { DDBAIError } from "./error.js";
+import { FeaturePack } from "./featurepack.js";
 
 export class ImportExport extends Application {
     static get defaultOptions() {
@@ -39,6 +40,9 @@ export class ImportExport extends Application {
                     content.cleanUp(); 
                 }
               });
+        });
+        html.find("#export-new-feature-pack").click(async () => {
+            new FeaturePack(FeaturePack.defaultOptions, { }).render(true);
         });
         html.find('#ddbai-workspace').on("change", (event) => {
             game.settings.set(
@@ -118,7 +122,8 @@ export class ImportExport extends Application {
                         message: "Error while processing adventure",
                         error: err
                     };
-                    this.milestone = 0;
+                    this.milestone = -1;
+                    this.step();
                     this.step(err.message);
                     ImportExport.enableButtons();
                     new DDBAIError(DDBAIError.defaultOptions, error).render(true);
@@ -129,7 +134,8 @@ export class ImportExport extends Application {
                     message: "Importation error",
                     error: "No entity returned"
                 };
-                this.milestone = 0;
+                this.milestone = -1;
+                this.step();
                 this.step(error.message);
                 ImportExport.enableButtons();
                 new DDBAIError(DDBAIError.defaultOptions, error).render(true);
@@ -152,7 +158,8 @@ export class ImportExport extends Application {
                 new DDBAIError(DDBAIError.defaultOptions, tmp).render(true);
             }
         }, (err) => {
-            this.milestone = 0;
+            this.milestone = -1;
+            this.step();
             this.step(err.message);
             ImportExport.enableButtons();
             new DDBAIError(DDBAIError.defaultOptions, err).render(true);
@@ -167,8 +174,10 @@ export class ImportExport extends Application {
         try {
             await exporter.processExport($('#ddbai-submission-email').val(), $('#ddbai-submission-name').val(), $('#ddbai-submission-message').val(), game.settings.get("ddb-adventure-importer", "current-book"), this);
         } catch (err) {
-            this.milestone = 0;
+            this.milestone = -1;
+            this.step();
             this.step("Exportation error");
+            new DDBAIError(DDBAIError.defaultOptions, err).render(true);
         }
         ImportExport.enableButtons();
     }

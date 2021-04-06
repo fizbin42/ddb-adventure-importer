@@ -1,0 +1,77 @@
+<form  autocomplete="off" onsubmit="event.preventDefault();">
+<h2>Feature pack</h2>
+<p>A feature pack is an optional addon when importing new content. You can change its parameters here; only you will be able to edit it later.
+    <div>
+        <br /><h2>Name</h2>
+    </div>
+    <p>Name of the feature pack. Please make it as self descriptive as possible and keep it short.</p>
+    <div class="form-content" style="display: flex">
+        <input type="text" name="ddbai-feature-name" id="ddbai-feature-name" style="flex: 0 1 auto" value="{{feature.name}}" />
+    </div>
+    <div id="ddbai-feature-name-error" style="color: red"></div>
+    <div>
+        <br /><h2>Description</h2>
+    </div>
+    <p>Put a summary here of the pack content. Make it enticing!</p>
+    <div class="feature-text">
+        <div class="feature-description">
+        {{editor content=feature.description target="feature.description" button=true owner=owner editable=editable}}
+        </div>
+    </div>
+    <div id="ddbai-feature-description-error" style="color: red"></div>
+    <div>
+        <br /><h2>Secret</h2>
+    </div>
+    <p>The secret of your pack. <b> Remember and store it somewhere</b>; it will be needed to modify the pack and to generate access token for your patrons. </p>
+    <div class="form-content" style="display: flex">
+        <input type="password" name="ddbai-feature-secret" id="ddbai-feature-secret" style="flex: 0 1 auto" value="{{feature.secret}}" />
+    </div>
+    <div id="ddbai-feature-secret-error" style="color: red"></div>
+    <div>
+        <br /><h2>Creator Name</h2>
+    </div>
+    <p>Your name; it will be displayed in the importation menu as the creator of the feature pack.</p>
+    <div class="form-content" style="display: flex">
+        <input type="text" name="ddbai-feature-creatorname" id="ddbai-feature-creatorname" style="flex: 0 1 auto" value="{{feature.creatorname}}" />
+    </div>
+    <div id="ddbai-feature-creatorname-error" style="color: red"></div>
+    <div>
+        <br /><h2>Creator Contact</h2>
+    </div>
+    <p>Your email; it will not be published, but will allow us to contact you when needed.</p>
+    <div class="form-content" style="display: flex">
+        <input type="text" name="ddbai-feature-creatoremail" id="ddbai-feature-creatoremail" style="flex: 0 1 auto" value="{{feature.creatoremail}}" />
+    </div>
+    <div id="ddbai-feature-creatoremail-error" style="color: red"></div>
+    <div>
+        <br /><h2>URL</h2>
+    </div>
+    <p>The site where customer can get/buy/subscribe your content. It's also where access tokens should be published if you restrict access to patrons only.</p>
+    <div class="form-content" style="display: flex">
+        <input type="text" name="ddbai-feature-url" id="ddbai-feature-url" style="flex: 0 1 auto" value="{{feature.url}}" />
+    </div>
+    <div id="ddbai-feature-url-error" style="color: red"></div>
+    <div>
+        <br /><h2><input type="checkbox" name="ddbai-feature-public" id="ddbai-feature-puclic" style="flex: 0 1 auto" value="{{feature.public}}" /> Public Contribution</h2>
+    </div>
+    <p>Is the feature pack content editable by everyone ? This form will still be restricted to only you.</p>
+    <div>
+        <br /><h2>Editors Contribution</h2>
+    </div>
+    <p>Is the feature pack content editable by some people beside yourself, but not everyone ? If yes, set the editors password. 
+        This password can be used to modify content (as the pack secret) but not this form. You don't need it if your are the sole contributor of the feature pack.</p>
+    <div class="form-content" style="display: flex">
+        <input type="password" name="ddbai-feature-editorpassword" id="ddbai-feature-editorpassword" style="flex: 0 1 auto" value="{{feature.editorpassword}}" />
+    </div>
+    <div>
+        <br /><h2><input type="checkbox" name="ddbai-feature-patron" id="ddbai-feature-patron" style="flex: 0 1 auto" value="{{feature.patron}}" /> For Patron Only</h2>
+    </div>
+    <p>Is an access token needed to unlock this feature pack ? You can generate tokens with a creator level subscription to our patreon. A REST API for tokens is available if you need one.</p>
+    <div>
+        <br /><h2><input type="checkbox" name="ddbai-feature-published" id="ddbai-feature-published" style="flex: 0 1 auto" value="{{feature.published}}" /> Published</h2>
+    </div>
+    <p>Is the feature pack ready for publication ? If selected, it will be available in the importation menu. Remember that you still need to publish the workspace itself afterward for any change to be effective.</p>
+    <div>
+        <button type="submit" id="ddbai-feature-save">Save</button>
+    </div>
+</form>

@@ -1,4 +1,4 @@
-<form>
+<form  autocomplete="off" onsubmit="event.preventDefault();">
       <h2>Import adventure from D&D Beyond</h2>
     <p>Read Me First! Follow theses steps to import an D&D Beyond adventure:</p>
       <ul>
@@ -63,6 +63,7 @@
         <button type="button" id="import-adventure-start" {{#if ready}}enabled{{else}}disabled{{/if}}>Import adventure</button>
       </div>
   </section>
+   <!-- Export Tab -->
   <section class="tab" data-tab="export">
       <div>
         <br /><h2>Name</h2>
@@ -85,6 +86,11 @@
       <div class="form-content" style="display: flex">
           <input type="text" name="ddbai-submission-message" id="ddbai-submission-message" style="flex: 0 1 auto" value="" />
       </div>
+      <div>
+        <br /><h2>Feature pack</h2>
+      </div>
+      <p>If you want to make your submission a feature pack, select an existing one, or make a new one. Please read the conditions and restrictions on feature packs beforehand.</p>
+      <button type="button" id="export-new-feature-pack">New pack</button>
       <br /><br />
       <div>
         <button type="button" id="export-adventure-start" {{#if ready}}enabled{{else}}disabled{{/if}}>Export adventure</button>

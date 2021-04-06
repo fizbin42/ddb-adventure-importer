@@ -15,6 +15,7 @@ export const loadTypes = () => {
             isFolder: false,
             fromCompendium: false, // These entities can be generated from compendium
             embeddedScope: {}, // Embedded entity can have relations
+            embeddedMedia: {}, // Embedded entity can have media
             relations: [],
             foundryContext: ["permission", "_id"], // These attributes are only needed within Foundry; they will be deleted at exportation 
             foundryContextEmbedded: {}, // These embedded attributes are only needed within Foundry; they will be deleted at exportation
@@ -40,8 +41,12 @@ export const loadTypes = () => {
     MANAGED_ENTITIES.Scene.relations = [{ type: "Folder", id: "folder" }, { type: "JournalEntry", id: "journal" }];
     MANAGED_ENTITIES.Scene.foundryContext.push('_priorThumbPath');
     MANAGED_ENTITIES.Scene.foundryContext.push('thumb');
+    // MANAGED_ENTITIES.Scene.foundryContext.push('initial'); // Bug ?? seem to hang on import 
     MANAGED_ENTITIES.Scene.embeddedScope.Note = { type: "JournalEntry", id: "entryId" };
-    MANAGED_ENTITIES.Scene.media.push({ source: "src", target: "img" });
+    MANAGED_ENTITIES.Scene.media.push("img");
+    MANAGED_ENTITIES.Scene.embeddedMedia = {
+        AmbientSound: "path"
+    };
 };
 
 export const getType = (obj) => {
@@ -170,6 +175,108 @@ export const unlink = async (entity, data) => {
             data[attribute] = tmp;
         }
     }
+    
+    for (let m of MANAGED_ENTITIES[type].media) { // We may have to upload new media
+        let media = entity.data[m];
+        let md5 = media.match(/[a-f0-9]{32}/);
+        let newMedia = false;
+        if (md5) {
+            if (entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m] && entity.data.flags.ddbai.media[m].id === md5[0]) {
+                // logger.info("Old media in field " + m + " of " + getType(entity) + " " + entity.name);
+            } else {
+                logger.info("New media in field " + m + " of " + getType(entity) + " " + entity.name);
+                newMedia = true;
+            }
+        } else {
+            logger.info("New media in field " + m + " of " + getType(entity) + " " + entity.name);
+            newMedia = true;
+        }
+        if (newMedia && entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m] && entity.data.flags.ddbai.media[m].replaced == media) {
+            logger.info("New media flagged replaced in field " + m + " of " + getType(entity) + " " + entity.name);
+            newMedia = false;
+        }
+        if (newMedia) {
+            // eslint-disable-next-line no-await-in-loop
+            const f = await uploadDDBAI(media);
+            data.flags.ddbai.media = {};
+            data.flags.ddbai.media[m] = {
+                id: f.id,
+                url: f.get,
+                replaced: entity.data[m]
+            };
+            // eslint-disable-next-line no-await-in-loop
+            await entity.update({ flags: data.flags });
+        }
+        delete data.flags.ddbai.media[m]["replaced"];
+        delete data[m];
+    }
+
+
+    // MANAGED_ENTITIES.Scene.embeddedMedia = {
+    //     AmbientSound: "path"
+    // };
+    for (let tm in MANAGED_ENTITIES[type].embeddedMedia) { // We may have to upload new media in embedded entities
+
+        let attribute = MANAGED_ENTITIES[type].config.embeddedEntities[tm];
+
+        if (data[attribute]) {
+            let im = 0;
+            let updates = [];
+            for (let m of data[attribute]) {
+                let media = m[MANAGED_ENTITIES[type].embeddedMedia[tm]];
+                let md5 = media.match(/[a-f0-9]{32}/);
+                let newMedia = false;
+                let target = MANAGED_ENTITIES[type].embeddedMedia[tm];
+                if (md5) {
+                    if (m.flags.ddbai && 
+                        m.flags.ddbai.media && 
+                        m.flags.ddbai.media[target] && 
+                        m.flags.ddbai.media[target].id == md5[0]) {
+                        logger.info("Old media in embedded entity " + tm + " at index " + im + ", field " + attribute + "." + target + " of " + getType(entity) + " " + entity.name);
+                    } else {
+                        logger.info("New media in embedded entity " + tm + " at index " + im + ", field " + attribute + "." + target + " of " + getType(entity) + " " + entity.name);
+                        newMedia = true;
+                    }
+                } else {
+                    logger.info("New media in embedded entity " + tm + " at index " + im + ", field " + attribute + "." + target + " of " + getType(entity) + " " + entity.name);
+                    newMedia = true;
+                }
+                if (newMedia && m.flags.ddbai && m.flags.ddbai.media && m.flags.ddbai.media[target] && m.flags.ddbai.media[target].replaced == media) {
+                    logger.info("New media flagged replaced in field " + target + " of " + getType(entity) + " " + entity.name);
+                    newMedia = false;
+                }
+                im += 1;
+                if (newMedia) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const f = await uploadDDBAI(media);
+                    m.flags = {
+                        ddbai: {
+                            media: {
+                            }
+                        }
+                    };
+                    m.flags.ddbai.media[target] = {
+                        id: f.id,
+                        url: f.get,
+                        replaced: media
+                    };
+                    let update = { 
+                        _id: m._id,
+                        flags: JSON.parse(JSON.stringify(m.flags))
+                    };
+                    updates.push(update);
+                    delete m.flags.ddbai.media[target]["replaced"];
+                    delete m[target];
+                }
+            }
+            if (updates.length > 0) {
+                // eslint-disable-next-line no-await-in-loop
+                await entity.updateEmbeddedEntity(tm, updates);
+            }
+        }
+    }
+
+    // Cleaning unneeded attributes
     for (let c of MANAGED_ENTITIES[type].foundryContext) {
         delete data[c];
     }
@@ -183,40 +290,8 @@ export const unlink = async (entity, data) => {
             }
         }
     }
-    for (let m of MANAGED_ENTITIES[type].media) { // We may have to upload new media
-        let media = entity.data[m.target];
-        let md5 = media.match(/[a-f0-9]{32}/);
-        let newMedia = false;
-        if (md5) {
-            if (entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m.target] && entity.data.flags.ddbai.media[m.target].id === md5[0]) {
-                // logger.info("Old media in field " + m.target + " of " + etType(entity) + " " + entity.name);
-            } else {
-                logger.info("New media in field " + m.target + " of " + getType(entity) + " " + entity.name);
-                newMedia = true;
-            }
-        } else {
-            logger.info("New media in field " + m.target + " of " + getType(entity) + " " + entity.name);
-            newMedia = true;
-        }
-        if (newMedia && entity.data.flags.ddbai && entity.data.flags.ddbai.media && entity.data.flags.ddbai.media[m.target] && entity.data.flags.ddbai.media[m.target].replaced == media) {
-            logger.info("New media flagged replaced in field " + m.target + " of " + getType(entity) + " " + entity.name);
-            newMedia = false;
-        }
-        if (newMedia) {
-            // eslint-disable-next-line no-await-in-loop
-            const f = await uploadDDBAI(media);
-            data.flags.ddbai.media = {};
-            data.flags.ddbai.media[m.target] = {
-                id: f.id,
-                url: f.get,
-                replaced: entity.data[m.target]
-            };
-            // eslint-disable-next-line no-await-in-loop
-            await entity.update({ flags: data.flags });
-        }
-        delete data.flags.ddbai.media[m.target]["replaced"];
-        delete data[m.target];
-    }
+
+    // eslint-disable-next-line require-atomic-updates
     data.id = entity.data.flags.ddbai.id;
 };
 
@@ -246,16 +321,18 @@ export const set = async (data, type, accumulator) => {
     let entity = get(data.flags.ddbai.id, type);
     if (entity) {
         // Managing media attibutes
+        const directory = game.settings.get("ddb-adventure-importer", "media-upload-directory");
+        
         for (let m of MANAGED_ENTITIES[type].media) {
-            if (entity.data.flags.ddbai.media[m.target].id != data.flags.ddbai.media[m.target].id) {
+            if (entity.data.flags.ddbai.media[m].id != data.flags.ddbai.media[m].id) {
                 // new media available
-                const directory = game.settings.get("ddb-adventure-importer", "media-upload-directory");
                 // eslint-disable-next-line no-await-in-loop
-                const img = await save(data[m.source], directory);
+                const img = await save(data[m], directory);
                 // eslint-disable-next-line require-atomic-updates
-                data[m.target] = img.path;
+                data[m] = img.path;
+            } else {
+                delete data[m]; // Image is the same, we dont use the redeem link
             }
-            delete data[m.source];
         }
         await entity.update(data);
         for (let et in MANAGED_ENTITIES[type].config.embeddedEntities) {
@@ -264,6 +341,16 @@ export const set = async (data, type, accumulator) => {
             await entity.deleteEmbeddedEntity(et, entity.getEmbeddedCollection(et).filter((e) => inScope(type, et, e)).map((e) => e._id));
             let attribute = MANAGED_ENTITIES[type].config.embeddedEntities[et];
             if (data[attribute] && data[attribute].length > 0) {
+                let attributeMedia = MANAGED_ENTITIES[type].embeddedMedia[et];
+                if (attributeMedia) {
+                    // eslint-disable-next-line max-depth
+                    for (let e of data[attribute]) {
+                        // eslint-disable-next-line max-depth
+                        // eslint-disable-next-line no-await-in-loop
+                        const img = await save(e[attributeMedia], directory);
+                        e[attributeMedia] = img.path; 
+                    }
+                }
                 // recreating the embedded entities. 
                 // eslint-disable-next-line no-await-in-loop
                 await entity.createEmbeddedEntity(et, data[attribute]);
@@ -275,13 +362,30 @@ export const set = async (data, type, accumulator) => {
             data[accumulator.attribute] += accumulator.value;
         }
         // Managing media attibutes
+        const directory = game.settings.get("ddb-adventure-importer", "media-upload-directory");
         for (let m of MANAGED_ENTITIES[type].media) {
-            const directory = game.settings.get("ddb-adventure-importer", "media-upload-directory");
             // eslint-disable-next-line no-await-in-loop
-            const img = await save(data[m.source], directory);
-            delete data[m.source];
-            data[m.target] = img.path;
+            const img = await save(data[m], directory);
+            // eslint-disable-next-line require-atomic-updates
+            data[m] = img.path;
         }
+
+        for (let m in MANAGED_ENTITIES[type].embeddedMedia) {
+            let attributeEmbedded = MANAGED_ENTITIES[type].config.embeddedEntities[m];
+            let attributeMedia = MANAGED_ENTITIES[type].embeddedMedia[m];
+            if (data[attributeEmbedded]) {
+                for (let e of data[attributeEmbedded]) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const img = await save(e[attributeMedia], directory);
+                    e[attributeMedia] = img.path;
+                }
+            }
+        }
+
+        MANAGED_ENTITIES.Scene.embeddedMedia = {
+            AmbientSound: "path"
+        };
+
         try {
             entity = await MANAGED_ENTITIES[type].config.baseEntity.create(data);
         } catch (err) {

@@ -40,6 +40,21 @@ const upload = (data, filename, directory) => {
     return DirectoryPicker.uploadToPath(directory, file);
 };
 
+export function validEmail(email) {
+    const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+}
+
+export function validURL(str) {
+    var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+      '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+      '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+      '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+    return !!pattern.test(str);
+  }
+
 export const getAPIServer = () => {
     const environment = game.settings.get("ddb-adventure-importer", "environment");
     if (environment == "production") {
@@ -97,13 +112,5 @@ export const save = (url, directory) => {
         upl.height = result.height;
         return upl;
     });
-};
-
-export const cleanUp = () => {
-    let works = [];
-    for (let f of game.folders.filter((f) => f.parent === null && f.data.flags && f.data.flags.ddbai)) {
-        works.push(f.delete());
-    }
-    return Promise.all(works);
 };
 
